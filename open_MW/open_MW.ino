@@ -252,7 +252,7 @@ void heating_timer () {
     if ( pause_time == false) {
       digitalWrite(relay_on_off, LOW);
       //power function:
-      power_timer(power_mode);//number of mode
+      power_timer(2, 10, 10); //number of mode,time on , time off
     }
 
 
@@ -268,7 +268,7 @@ void heating_timer () {
   display.display();
   timer_set = 0;
   stop_imm = true;
-  on_off_mode == true;
+  on_off_mode = true;
   digitalWrite(BC_display, HIGH);
   timer_BC_display = rtc.now().unixtime();
 }
@@ -277,10 +277,12 @@ void quick_heating_timer () {
   digitalWrite(BC_display, HIGH);
   DateTime now = rtc.now();
   timer_heat = (rtc.now().unixtime() + 30);
+  timer_power = rtc.now().unixtime();
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(BLACK);
   digitalWrite(relay_on_off, LOW);
+  digitalWrite(relay_power, LOW);
   delay(500);
   while (timer_heat - rtc.now().unixtime() > 0 && stop_imm == true) {
 
@@ -324,8 +326,11 @@ void quick_heating_timer () {
       }
       delay(200);
     }
+    //power function:
+    power_timer(power_mode, 10, 10); //number of mode,time on , time off
   }
   digitalWrite(relay_on_off, HIGH);
+  digitalWrite(relay_power, HIGH);
   if (stop_imm == true)
   {
     end_program();
@@ -334,7 +339,7 @@ void quick_heating_timer () {
   display.setCursor(0, 0);
   display.display();
   timer_set = 0;
-
+  on_off_mode = true;
   stop_imm = true;
   digitalWrite(BC_display, HIGH);
   timer_BC_display = rtc.now().unixtime();
@@ -416,7 +421,7 @@ void end_program() {  //buzzer dodelat
   display.setTextColor(BLACK);
   int blink_lcd = 0;
   delay(200);
-  while (digitalRead(start_stop_button) == HIGH) {
+  while (digitalRead(start_stop_button) == HIGH && stop_imm == true) {
 
     digitalWrite(BC_display, HIGH);
 
@@ -440,14 +445,22 @@ void end_program() {  //buzzer dodelat
     if (rtc.now().unixtime() - timer_end > 20)//set warning time!
     {
       //here add buzzer function beep
-      for (int x = 0; x < 5; x++) {
+      for (int x = 0; x < 10; x++) {
         digitalWrite(BC_display, LOW);
         display.clearDisplay();
         display.setCursor(0, 15);
         display.setTextSize(2);
         display.print("DONE");
         display.display();
+        if (digitalRead(start_stop_button) == LOW) {
+          //add beep 2x
+          stop_imm = false;
+        }
         delay(500);
+        if (digitalRead(start_stop_button) == LOW) {
+          //add beep 2x
+          stop_imm = false;
+        }
         digitalWrite(BC_display, HIGH);
         display.clearDisplay();
         display.setCursor(0, 15);
@@ -461,6 +474,7 @@ void end_program() {  //buzzer dodelat
 
   }
   //add beep 1x
+  stop_imm = true;
   display.clearDisplay();
   display.setCursor(10, 15);
   display.setTextSize(2);
@@ -487,33 +501,34 @@ void print2minute(int number) {
 void settings() { //udělat nastavení(menu:čas/datum;vykon trouby(uloženi do EEPROM);displej:kontrast,doba podsviceni)
 
 }
-void power_timer(int mode) {
+void power_timer(int mode, int time_power_on, int time_power_off) { //časy jako proměnné funkce až bude menu
   DateTime now = rtc.now();
 
-  if (power_mode == 1) { //mode 1 keep warm
+  if (mode == 1) { //mode 1: control power by switching on/off relay in time intervals
     //power on
-    if (rtc.now().unixtime() - timer_power < 6 && on_off_mode == true) { //6sec on
+    if (rtc.now().unixtime() - timer_power < time_power_on && on_off_mode == true) { //...sec on
       digitalWrite(relay_power, LOW);
     }
     else if (on_off_mode == true)
     {
       timer_power = rtc.now().unixtime();
-      on_off_mode == false;
+      on_off_mode = false;
     }
 
-    if (rtc.now().unixtime() - timer_power < 25 && on_off_mode == false) { //25sec off
+    if (rtc.now().unixtime() - timer_power < time_power_off && on_off_mode == false) { //...sec off
       digitalWrite(relay_power, HIGH);
     }
     else if (on_off_mode == false)
     {
       timer_power = rtc.now().unixtime();
-      on_off_mode == true;
+      on_off_mode = true;
     }
 
   }
 
-
-
+  if (mode == 2) { //mode 2: No control (full power)
+    digitalWrite(relay_power, LOW);
+  }
 
 }
 void print2digits(int number) {
