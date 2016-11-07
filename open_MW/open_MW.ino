@@ -24,6 +24,8 @@ int down_button = 11;
 int BC_display = 13;
 int relay_on_off = 9;
 int relay_power = 8;
+int door_button = 0;
+int buzzer = 1;
 
 long timer_heat;
 long timer_power;
@@ -44,6 +46,7 @@ void setup()   {
   pinMode(up_button, INPUT_PULLUP);
   pinMode(start_stop_button, INPUT_PULLUP);
   pinMode(down_button, INPUT_PULLUP);
+  pinMode(door_button, INPUT_PULLUP);
   //relays
   pinMode(relay_on_off, OUTPUT);
   pinMode(relay_power, OUTPUT);
@@ -140,6 +143,7 @@ void loop() {
       //add beep 3x
       display.clearDisplay();
       display.setCursor(0, 0);
+      display.setTextSize(2);
       display.print("There will be menu");
       display.display();
       digitalWrite(BC_display, HIGH);
@@ -151,8 +155,23 @@ void loop() {
   //in this menu can start quick timing
   if (digitalRead(start_stop_button) == LOW) {
     //add beep 1x
-    delay(500);
-    quick_heating_timer();
+    if (digitalRead(door_button) == LOW) {
+      delay(500);
+      quick_heating_timer();
+    }
+    else
+    {
+      //add beep 2x
+      display.clearDisplay();
+      display.setCursor(5, 8);
+      display.setTextSize(2);
+      display.println("Door");
+      display.print(" open!");
+      display.display();
+      digitalWrite(BC_display, HIGH);
+      timer_BC_display = rtc.now().unixtime();
+      delay(3000);
+    }
 
   }
 
@@ -243,6 +262,11 @@ void heating_timer () {
       delay(200);
     }
 
+    if (digitalRead(door_button) == HIGH) {
+      //add beep 2x
+      stop_imm = false;
+    }
+
     if ( pause_time == true) {
       digitalWrite(relay_on_off, HIGH);
       timer_heat = (rtc.now().unixtime() + timer_set);
@@ -326,6 +350,10 @@ void quick_heating_timer () {
       }
       delay(200);
     }
+    if (digitalRead(door_button) == HIGH) {
+      //add beep 2x
+      stop_imm = false;
+    }
     //power function:
     power_timer(power_mode, 10, 10); //number of mode,time on , time off
   }
@@ -382,10 +410,26 @@ void timer_mode () {
       //add beep 1x
       delay(1000);
       if (digitalRead(start_stop_button) == HIGH) {
-        stop_imm = true;
-        if (timer_set > 0) heating_timer ();
-        in_timer_mode = false;
-        timer_BC_display = rtc.now().unixtime();
+        if (digitalRead(door_button) == LOW) {
+          stop_imm = true;
+          if (timer_set > 0) heating_timer ();
+          in_timer_mode = false;
+          timer_BC_display = rtc.now().unixtime();
+        }
+        else
+        {
+          //add beep 2x
+          display.clearDisplay();
+          display.setCursor(5, 8);
+          display.setTextSize(2);
+          display.println("Door");
+          display.print(" open!");
+          display.display();
+          digitalWrite(BC_display, HIGH);
+          timer_BC_display = rtc.now().unixtime();
+          delay(3000);
+        }
+
       }
       if (digitalRead(start_stop_button) == LOW) {
         in_timer_mode = false;
@@ -421,7 +465,7 @@ void end_program() {  //buzzer dodelat
   display.setTextColor(BLACK);
   int blink_lcd = 0;
   delay(200);
-  while (digitalRead(start_stop_button) == HIGH && stop_imm == true) {
+  while ((digitalRead(start_stop_button) == HIGH && digitalRead(door_button) == LOW) && stop_imm == true) {
 
     digitalWrite(BC_display, HIGH);
 
@@ -456,8 +500,16 @@ void end_program() {  //buzzer dodelat
           //add beep 2x
           stop_imm = false;
         }
+        if (digitalRead(door_button) == HIGH) {
+          //add beep 2x
+          stop_imm = false;
+        }
         delay(500);
         if (digitalRead(start_stop_button) == LOW) {
+          //add beep 2x
+          stop_imm = false;
+        }
+        if (digitalRead(door_button) == HIGH) {
           //add beep 2x
           stop_imm = false;
         }
