@@ -8,8 +8,13 @@
 #include <Wire.h>
 #include "RTClib.h" //for RTC time module
 
+//menu
+#include "U8glib.h"
+#include "M2tk.h"
+#include "utility/m2ghu8g.h"
+U8GLIB_PCD8544 u8g(7, 6, 4, 5, 3);    // SPI Com: SCK = 13, MOSI = 11, CS = 10, A0 = 9, Reset = 8
 // Software SPI (slower updates, more flexible pin options):
-// pin 7 - Serial clock out (SCLK)
+// pin 7 - Serial clock out (CLK)
 // pin 6 - Serial data out (DIN)
 // pin 5 - Data/Command select (D/C)
 // pin 4 - LCD chip select (CS)
@@ -18,14 +23,14 @@ Adafruit_PCD8544 display = Adafruit_PCD8544(7, 6, 5, 4, 3);
 RTC_DS1307 rtc;
 
 //gloabal variables: (beware on changes!!)
-int up_button = 12;
-int start_stop_button = 10;
-int down_button = 11;
-int BC_display = 13;
-int relay_on_off = 9;
-int relay_power = 8;
-int door_button = 0;
-int buzzer = 1;
+uint8_t up_button = 12;
+uint8_t start_stop_button = 10;
+uint8_t down_button = 11;
+uint8_t BC_display = 13;
+uint8_t relay_on_off = 9;
+uint8_t relay_power = 8;
+uint8_t door_button = 0;
+uint8_t buzzer = 1;
 
 long timer_heat;
 long timer_power;
@@ -36,8 +41,22 @@ int blink_lcd_main = 0;
 int power_mode = 1; //5 modes (keep warm, rozmaržení,350W,500W,750W) -after testing change this value
 boolean on_off_mode = true;
 boolean stop_imm = true;
-
+boolean menu_select = true;
 float openMW_ver = 1.0;
+
+// Edit the following long int number
+uint32_t number = 1234;
+
+// Definition of the m2tklib menu
+M2_U32NUM(el_num, "a1c4", &number);
+
+// M2tk init
+M2tk m2(&el_num, m2_es_arduino, m2_eh_2bs, m2_gh_u8g_bfs);
+
+// U8glib draw procedure: Just call the M2tklib draw procedure
+void draw(void) {
+    m2.draw();
+}
 
 
 void setup()   {
@@ -57,6 +76,19 @@ void setup()   {
   digitalWrite(relay_on_off, HIGH);
   digitalWrite(relay_power, HIGH);
 
+   // Connect u8glib with m2tklib
+  m2_SetU8g(u8g.getU8g(), m2_u8g_box_icon);
+
+  // Assign u8g font to index 0
+  m2.setFont(0, u8g_font_7x13);
+
+  
+
+  // Setup keys
+  m2.setPin(M2_KEY_SELECT, start_stop_button);
+  m2.setPin(M2_KEY_PREV, up_button);
+  m2.setPin(M2_KEY_NEXT, down_button);
+      
 
   display.begin();// init done
   display.setContrast(60); //set contrast
@@ -140,7 +172,22 @@ void loop() {
       timer_BC_display = rtc.now().unixtime();
     }
     if (digitalRead(down_button) == LOW) { //enter to menu
-      //add beep 3x
+      
+      while(menu_select == true){
+        m2.checkKey();
+  if ( m2.handleKey() ) {
+    u8g.firstPage();  
+    do {
+      draw();
+    } while( u8g.nextPage() );
+  }
+    if(digitalRead(door_button) == LOW) {
+      menu_select = false;
+    }
+      }
+      menu_select = true;
+      
+      /*//add beep 3x
       display.clearDisplay();
       display.setCursor(0, 0);
       display.setTextSize(2);
@@ -148,7 +195,7 @@ void loop() {
       display.display();
       digitalWrite(BC_display, HIGH);
       timer_BC_display = rtc.now().unixtime();
-      delay(2000);
+      delay(2000);*/
     }
 
   }
