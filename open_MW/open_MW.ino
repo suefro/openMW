@@ -2,7 +2,7 @@
   Digital timer for microwave ver 1.0
   not tested in real
 */
-#include <Wire.h>
+//#include <Wire.h>
 #include "RTClib.h" //for RTC time module
 #include <EEPROM.h>
 //menu
@@ -43,7 +43,7 @@ M2_EXTERN_ALIGN(top_el_x2l_menu);
 //=================================================
 
 /*=== Display settings ===*/
-void save_value(void)
+void save_value_display(void)
 {
   EEPROM.put(0, Disp_contrast);
   EEPROM.put(1, BC_bright);
@@ -59,15 +59,17 @@ void save_value(void)
   delay(3000);
 }
 
-M2_LABEL(el_display_label1, NULL, "con:");
+M2_LABEL(el_display_label1, NULL, "contrast:");
 M2_U8NUM(el_display_1, NULL, 110, 180, &Disp_contrast);
 M2_LABEL(el_display_label2, NULL, "brigh:");
 M2_U8NUM(el_display_2, NULL, 0, 255, &BC_bright);
-M2_LABEL(el_display_label3, NULL, "time:");
+M2_LABEL(el_display_label3, NULL, "time BL:");
 M2_U8NUM(el_display_3, NULL, 5, 255, &BC_time_on);
 
+
+
 M2_ROOT(el_display_menu, "f4", " back ", &top_el_x2l_menu);
-M2_BUTTON(el_display_save, "f4", " save ", save_value);
+M2_BUTTON(el_display_save, "f4", " save ", save_value_display);
 
 M2_LIST(display_list) = {
   &el_display_label1, &el_display_1,
@@ -83,36 +85,65 @@ M2_ALIGN(el_top_display_menu, "-1|1W64H64", &el_display_menu_grid);
 /*=== close menu ===*/
 void close_menu(void) {
   menu_select = false;
+  BC_light(true, true);
 }
 /*==========================
 
   /*=== radio button selection--POWER  ===*/
+void save_value_power(void)
+{
+  EEPROM.put(3, power_mode);
 
+  //add beep 2x
+  u8g.firstPage();
+  do {
+    u8g.drawStr( 0, 20, "Changes");
+    u8g.drawStr( 0, 32, "saved!");
+  }
+  while ( u8g.nextPage() );
+  delay(3000);
+}
 M2_LABEL(el_power_label1, NULL, "keep warm");
 M2_RADIO(el_power_radio1, "v0", &power_mode);
 
-M2_LABEL(el_power_label2, NULL, "unfreez");
+M2_LABEL(el_power_label2, NULL, "unfreeze");
 M2_RADIO(el_power_radio2, "v1", &power_mode);
 
 M2_LABEL(el_power_label3, NULL, "350W");
 M2_RADIO(el_power_radio3, "v2", &power_mode);
 
-M2_ROOT(el_power_goto_top, NULL, " back ", &top_el_x2l_menu);
+M2_LABEL(el_power_label4, NULL, "500W");
+M2_RADIO(el_power_radio4, "v3", &power_mode);
+
+M2_LABEL(el_power_label5, NULL, "700W");
+M2_RADIO(el_power_radio5, "v4", &power_mode);
+
+M2_BUTTON(el_power_save, "f4", " save ", save_value_power);
+M2_ROOT(el_power_goto_top, "f4", " back ", &top_el_x2l_menu);
 
 M2_LIST(list_power) = {
   &el_power_label1, &el_power_radio1,
   &el_power_label2, &el_power_radio2,
   &el_power_label3, &el_power_radio3,
-  &el_power_goto_top
+  &el_power_label4, &el_power_radio4,
+  &el_power_label5, &el_power_radio5,
+  &el_power_save, &el_power_goto_top
 };
 M2_GRIDLIST(el_power_grid, "c2", list_power);
 M2_ALIGN(el_top_power, "-1|1W64H64", &el_power_grid);
 //=============================================
 
 /*=== Time settings ===*/
+uint8_t set_hour = 0;
+uint8_t set_min = 0;
+uint8_t set_day = 0;
+uint8_t set_month = 0;
+uint8_t set_year = 0;
+
 void change_time(void)
 {
-
+  // January 21, 2014 at 3am you would call:
+  rtc.adjust(DateTime(2000 + set_year, set_month, set_day, set_hour, set_min, 0));
 
   //add beep 2x
   u8g.firstPage();
@@ -123,42 +154,44 @@ void change_time(void)
   while ( u8g.nextPage() );
   delay(3000);
 }
-uint8_t set_hour = 0;
-uint8_t set_min = 0;
-uint8_t set_day = 0;
-uint8_t set_month = 0;
-uint32_t set_year = 0;
-M2_LABEL(el_time_label1, NULL, "time:");
-M2_U8NUM(el_time_1, NULL, 0, 23, &set_hour);
-M2_LABEL(el_time_label2, NULL, ":");
-M2_U8NUM(el_time_2, NULL, 0, 59, &set_min);
-M2_LABEL(el_time_label3, NULL, "Date:");
-M2_U8NUM(el_time_3, NULL, 0, 32, &set_day);
-M2_LABEL(el_time_label4, NULL, "/");
-M2_U8NUM(el_time_4, NULL, 0, 12, &set_month);
-M2_LABEL(el_time_label5, NULL, "/");
-M2_U32NUM(el_time_5, "c4" , &set_year);
+
+M2_LABEL(el_time_label1, NULL, "Hour:");
+M2_U8NUM(el_time_1, "c2", 0, 23, &set_hour);
+M2_LABEL(el_time_label2, NULL, "Minute:");
+M2_U8NUM(el_time_2, "c2", 0, 59, &set_min);
+M2_LABEL(el_time_label3, NULL, "Day:");
+M2_U8NUM(el_time_3, "c2", 0, 32, &set_day);
+M2_LABEL(el_time_label4, NULL, "Month:");
+M2_U8NUM(el_time_4, "c2", 0, 12, &set_month);
+M2_LABEL(el_time_label5, NULL, "Year:");
+M2_U8NUM(el_time_5, "c2", 16, 99, &set_year);
+//M2_U32NUM(el_time_5, "c4", &set_year);
 
 M2_ROOT(el_time_menu, "f4", " back ", &top_el_x2l_menu);
 M2_BUTTON(el_time_save, "f4", " save ", change_time);
 
 M2_LIST(time_list) = {
-  &el_time_label1, &el_time_1, &el_time_label2, &el_time_2,
-  &el_time_label3, &el_time_3, &el_time_label4, &el_time_4, &el_time_label5, &el_time_5,
-  &el_time_save, &el_display_menu
+  &el_time_label1, &el_time_1,
+  &el_time_label2, &el_time_2,
+  &el_time_label3, &el_time_3,
+  &el_time_label4, &el_time_4,
+  &el_time_label5, &el_time_5,
+  &el_time_save, &el_time_menu,
 };
 
 M2_GRIDLIST(el_time_menu_grid, "c2", time_list);
 M2_ALIGN(el_top_time_menu, "-1|1W64H64", &el_time_menu_grid);
 //=================================================
 
+
+
 // this is the overall menu structure for the X2L Menu
 
 m2_xmenu_entry xmenu_data[] =
 {
-  { "Settings", NULL, NULL },    /* expandable main menu entry */
- // { ". Time", &el_top_time_menu, NULL },
-  { ". Power", &el_top_power, NULL},
+  //{ "Settings", NULL, NULL },    /* expandable main menu entry */
+  { "Time", &el_top_time_menu, NULL },
+  { "Power", &el_top_power, NULL},
   { "Display", &el_top_display_menu, NULL },
   {"Back<", NULL, &close_menu  },
   { NULL, NULL, NULL },
@@ -214,7 +247,7 @@ void setup()   {
   m2_SetU8g(u8g.getU8g(), m2_u8g_box_icon);
 
   // Assign u8g font to index 0
-  m2.setFont(0, u8g_font_6x13r);
+  m2.setFont(0, u8g_font_5x7r);
 
   // Assign icon font to index 3
   m2.setFont(3, u8g_font_m2icon_7);
@@ -228,12 +261,13 @@ void setup()   {
   EEPROM.get(0, Disp_contrast);
   EEPROM.get(1, BC_bright);
   EEPROM.get(2, BC_time_on);
+  EEPROM.get(3, power_mode);
 
   BC_light(true, true); //turn on backlight
   u8g.firstPage();
   do {
     u8g.setContrast(Disp_contrast);
-    u8g.setFont(u8g_font_5x7);
+    u8g.setFont(u8g_font_5x7r);
     u8g.drawStr( 0, 10, "Open-MW 2016");
     u8g.drawStr( 0, 20, "Firmware:");
     u8g.setPrintPos(0, 30);
@@ -243,17 +277,34 @@ void setup()   {
   delay(2000);
 
   if (! rtc.begin()) {
-    Serial.println("Couldn't find RTC");
-    while (1);
+
+    u8g.firstPage();
+    do {
+
+      u8g.drawStr( 0, 20, "RTC ERROR!");
+
+    }
+    while ( u8g.nextPage() );
+    delay(10000);
+    // while (1);
   }
+
   if (! rtc.isrunning()) {
-    Serial.println("RTC is NOT running!");
+    u8g.firstPage();
+    do {
+
+      u8g.drawStr( 0, 20, "Set Time!");
+
+    }
+    while ( u8g.nextPage() );
+    delay(10000);
     // following line sets the RTC to the date & time this sketch was compiled
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // This line sets the RTC with an explicit date & time, for example to set
     // January 21, 2014 at 3am you would call:
     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
   }
+
 
 
 }
@@ -301,14 +352,22 @@ void loop() {
 
   if (digitalRead(down_button) == LOW) {
     //add beep 1x
-    delay(1000);
+    delay(500);
     if (digitalRead(down_button) == HIGH) {
       BC_light(true, true);
     }
     if (digitalRead(down_button) == LOW) { //enter to menu
 
+      DateTime now = rtc.now();
+      set_hour = now.hour();
+      set_min = now.minute();
+      set_day = now.day();
+      set_month = now.month();
+      set_year = 16;
+
       while (menu_select == true) {
         // menu management
+
         analogWrite(BC_display, BC_bright);
         u8g.setContrast(Disp_contrast);
         m2.checkKey();
@@ -319,7 +378,7 @@ void loop() {
             draw();
           } while ( u8g.nextPage() );
         }
-        
+
       }
       menu_select = true;
 
@@ -493,7 +552,7 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
     if ( pause_time == false) {
       digitalWrite(relay_on_off, LOW);
       //power function:
-      power_timer(power_mode, 10, 10); //number of mode,time on , time off
+      power_timer(power_mode); //number of mode,time on , time off
     }
 
 
@@ -518,8 +577,7 @@ void timer_mode () {
   while (in_timer_mode == true) {
     u8g.firstPage();
     do {
-      u8g.setPrintPos(0, 8);
-      u8g.print("Set Timer");
+      u8g.drawStr( 0, 8, "SetTimer");
       u8g.setPrintPos(0, 16);
       print2minute(timer_set);
     }
@@ -685,32 +743,49 @@ void print2minute(int number) {
 
 }
 
-void power_timer(int mode, int time_power_on, int time_power_off) { //časy jako proměnné funkce až bude menu
+void power_timer(int mode) { //časy jako proměnné funkce až bude menu
   DateTime now = rtc.now();
 
-  if (mode == 1) { //mode 1: control power by switching on/off relay in time intervals
-    //power on
-    if (rtc.now().unixtime() - timer_power < time_power_on && on_off_mode == true) { //...sec on
-      digitalWrite(relay_power, LOW);
-    }
-    else if (on_off_mode == true)
-    {
-      timer_power = rtc.now().unixtime();
-      on_off_mode = false;
-    }
-
-    if (rtc.now().unixtime() - timer_power < time_power_off && on_off_mode == false) { //...sec off
-      digitalWrite(relay_power, HIGH);
-    }
-    else if (on_off_mode == false)
-    {
-      timer_power = rtc.now().unixtime();
-      on_off_mode = true;
-    }
-
+  int time_power_on;
+  int time_power_off;
+  if (mode == 0) { //mode 0: keepwarm
+    time_power_on = 7;
+    time_power_off = 25;
+  }
+  if (mode == 1) { //mode 1: unfreezing
+    time_power_on = 10;
+    time_power_off = 20;
+  }
+  if (mode == 2) { //mode 2: 350W
+    time_power_on = 17;
+    time_power_off = 12;
+  }
+  if (mode == 3) { //mode 3: 500W
+    time_power_on = 25;
+    time_power_off = 7;
   }
 
-  if (mode == 2) { //mode 2: No control (full power)
+  if (rtc.now().unixtime() - timer_power < time_power_on && on_off_mode == true) { //...sec on
+    digitalWrite(relay_power, LOW);
+  }
+  else if (on_off_mode == true)
+  {
+    timer_power = rtc.now().unixtime();
+    on_off_mode = false;
+  }
+
+  if (rtc.now().unixtime() - timer_power < time_power_off && on_off_mode == false) { //...sec off
+    digitalWrite(relay_power, HIGH);
+  }
+  else if (on_off_mode == false)
+  {
+    timer_power = rtc.now().unixtime();
+    on_off_mode = true;
+  }
+
+
+
+  if (mode == 4) { //mode 4: 750W No control (full power)
     digitalWrite(relay_power, LOW);
   }
 
