@@ -36,7 +36,7 @@ boolean on_off_mode = true;
 boolean stop_imm = true;
 boolean menu_select = true;
 char WM_version[5] = "1.1";
-
+boolean q_timer_pause = true;
 //=================================================
 // Forward declaration of the toplevel element
 M2_EXTERN_ALIGN(top_el_x2l_menu);
@@ -247,10 +247,10 @@ void setup()   {
   m2_SetU8g(u8g.getU8g(), m2_u8g_box_icon);
 
   // Assign u8g font to index 0
+  //m2.setFont(0, u8g_font_4x6r);
   m2.setFont(0, u8g_font_5x7r);
-
   // Assign icon font to index 3
-  m2.setFont(3, u8g_font_m2icon_7);
+  // m2.setFont(3, u8g_font_m2icon_7);
 
   // Setup keys
   m2.setPin(M2_KEY_SELECT, start_stop_button);
@@ -263,11 +263,11 @@ void setup()   {
   EEPROM.get(2, BC_time_on);
   EEPROM.get(3, power_mode);
 
+
   BC_light(true, true); //turn on backlight
   u8g.firstPage();
   do {
     u8g.setContrast(Disp_contrast);
-    u8g.setFont(u8g_font_5x7r);
     u8g.drawStr( 0, 10, "Open-MW 2016");
     u8g.drawStr( 0, 20, "Firmware:");
     u8g.setPrintPos(0, 30);
@@ -313,14 +313,15 @@ void loop() {
   DateTime now = rtc.now();
   u8g.firstPage();
   do {
-    u8g.setFont(u8g_font_5x7);
-    u8g.setPrintPos(0, 8);
+    u8g.setFont(u8g_font_8x13Br);
+    u8g.setPrintPos(12, 12);
     print2digits(now.hour());
     u8g.print(":");
     print2digits(now.minute());
     u8g.print(":");
     print2digits(now.second());
-    u8g.setPrintPos(0, 16);
+    u8g.setFont(u8g_font_5x7r);
+    u8g.setPrintPos(14, 25);
     print2digits(now.day());
     u8g.print('/');
     print2digits(now.month());
@@ -330,12 +331,24 @@ void loop() {
     //blinking static text
 
     if (blink_lcd_main < 500) {
-      u8g.drawStr( 0, 24, "UP");
-      u8g.drawStr( 0, 32, "Start/Stop");
+      u8g.drawFrame(0, 30, 26, 18);
+      u8g.drawStr( 2, 41, "Menu");
+      u8g.drawFrame(28, 30, 26, 18);
+      u8g.drawStr( 29, 37, "Quick");
+      u8g.drawStr( 29, 45, "Start");
+      u8g.drawFrame(57, 30, 26, 18);
+      u8g.drawStr( 62, 37, "Set");
+      u8g.drawStr( 58, 45, "Timer");
     }
     if (blink_lcd_main > 500 && blink_lcd_main < 1000 ) {
-      u8g.drawStr( 0, 24, "timer");
-      u8g.drawStr( 0, 32, "quick timer");
+      u8g.drawFrame(0, 30, 26, 18);
+      u8g.drawStr( 2, 41, "Light");
+      u8g.drawFrame(28, 30, 26, 18);
+      u8g.drawStr( 29, 37, "Quick");
+      u8g.drawStr( 29, 45, "Start");
+      u8g.drawFrame(57, 30, 26, 18);
+      u8g.drawStr( 62, 37, "Set");
+      u8g.drawStr( 58, 45, "Timer");
     }
     blink_lcd_main++;
     if (blink_lcd_main > 1000) blink_lcd_main = 0;
@@ -346,6 +359,7 @@ void loop() {
     delay(500);
     BC_light(true, true);
     //add beep 1x
+
     timer_mode();
 
   }
@@ -391,6 +405,7 @@ void loop() {
     //add beep 1x
     if (digitalRead(door_button) == LOW) {
       delay(500);
+      BC_light(true, true);
       heating_timer (false);
     }
     else
@@ -398,8 +413,11 @@ void loop() {
       //add beep 2x
       u8g.firstPage();
       do {
-        u8g.drawStr( 0, 24, "DOOR");
-        u8g.drawStr( 0, 32, "OPEN");
+        u8g.setFont(u8g_font_8x13Br);
+        u8g.setPrintPos(15, 12);
+        u8g.print("DOOR");
+        u8g.setPrintPos(15, 28);
+        u8g.print("OPEN");
       }
       while ( u8g.nextPage() );
       BC_light(true, true);
@@ -430,15 +448,49 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
   while (timer_uni - rtc.now().unixtime() > 0 && stop_imm == true) {
     u8g.firstPage();
     do {
-      u8g.drawStr( 0, 8, "Remaining");
-      u8g.drawStr( 0, 16, "time");
-      u8g.setPrintPos(0, 24);
+      u8g.setFont(u8g_font_8x13Br);
+      u8g.drawStr( 16, 12, "Timer");
+      u8g.setPrintPos(20, 28);
       print2minute(timer_uni - rtc.now().unixtime());
+      u8g.setFont(u8g_font_5x7r);
+      u8g.drawFrame(0, 30, 26, 18);
+      u8g.drawStr( 4, 41, "DOWN");
+      u8g.drawFrame(28, 30, 26, 18);
+      if (digitalRead(door_button) == HIGH)
+      {
+        if (value == true) u8g.drawStr( 31, 41, "STOP");
+        if (value == false) u8g.drawStr( 35, 41, "UP");
+      }
+      
+      if (digitalRead(door_button) == LOW)
+      {
+        if (value == true)
+        {
+          if (pause_time == false) u8g.drawStr( 29, 41, "PAUSE");
+          if (pause_time == true) u8g.drawStr( 29, 41, "START");
+        }
+        if (value == false)
+        {
+          u8g.drawStr( 35, 41, "UP");
+        }
+      }
+      u8g.drawFrame(57, 30, 26, 18);
+      if (value == true)
+      {
+        u8g.drawStr( 65, 41, "UP");
+      }
+      if (value == false)
+      {
+        u8g.drawStr( 59, 41, "STOP");
+      }
+
     }
     while ( u8g.nextPage() );
     delay(100);
     if (value == false)
     {
+
+
       if (digitalRead(start_stop_button) == LOW) {
         //add beep 1x
         delay(500);
@@ -446,37 +498,57 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
         if (timer_uni - rtc.now().unixtime() <= 580) {
           timer_uni = timer_uni + 30;
         }
+        if ( q_timer_pause == false) {
+          if (timer_set <= 580) {
+            timer_set = timer_set + 10;
+
+          }
+        }
 
       }
     }
 
     if (value == true)
     {
-      if (digitalRead(start_stop_button) == LOW) {
-        //add beep 1x
-        if (pause_time_button == true) //on pause
-        {
-          pause_time = true;
-          timer_set = (timer_uni - rtc.now().unixtime());
-          digitalWrite(relay_on_off, HIGH);
-          delay(500);
+      if (digitalRead(door_button) == HIGH)
+      {
+        if (digitalRead(start_stop_button) == LOW) {
+           stop_imm = false;
+           delay(1000);
         }
-
-        if (pause_time_button == false) //off pause
-        {
-          pause_time = false;
-          pause_time_button = true;
-          delay(500);
-        }
+      }
+      if (digitalRead(door_button) == LOW)
+      {
 
         if (digitalRead(start_stop_button) == LOW) {
-          stop_imm = false;
-          u8g.firstPage();
-          do {
-            u8g.drawStr( 0, 20, "END!");
+          //add beep 1x
+          if (pause_time_button == true) //on pause
+          {
+            pause_time = true;
+            timer_set = (timer_uni - rtc.now().unixtime());
+            digitalWrite(relay_on_off, HIGH);
+            delay(500);
           }
-          while ( u8g.nextPage() );
-          delay(3000);
+
+          if (pause_time_button == false) //off pause
+          {
+            pause_time = false;
+            pause_time_button = true;
+            delay(500);
+          }
+
+          if (digitalRead(start_stop_button) == LOW) {
+            digitalWrite(relay_on_off, HIGH);
+            digitalWrite(relay_power, HIGH);
+            stop_imm = false;
+            u8g.firstPage();
+            do {
+              u8g.setFont(u8g_font_8x13Br);
+              u8g.drawStr( 10, 28, ">END<");
+            }
+            while ( u8g.nextPage() );
+            delay(3000);
+          }
         }
       }
     }
@@ -484,11 +556,13 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
     {
       if (digitalRead(up_button) == LOW) {
         //add beep 1x
+        digitalWrite(relay_on_off, HIGH);
+        digitalWrite(relay_power, HIGH);
         stop_imm = false;
         u8g.firstPage();
         do {
-          u8g.setPrintPos(0, 20);
-          u8g.print("END!");
+          u8g.setFont(u8g_font_8x13Br);
+          u8g.drawStr( 10, 28, ">END<");
         }
         while ( u8g.nextPage() );
         delay(3000);
@@ -519,6 +593,12 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
         if (timer_uni - rtc.now().unixtime() >= 11) {
           timer_uni = timer_uni - 10;
         }
+        if (q_timer_pause == false) {
+          if (timer_set >= 5) {
+            timer_set = timer_set - 10;
+
+          }
+        }
         delay(200);
       }
     }
@@ -538,9 +618,28 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
         delay(200);
       }
     }
+
     if (digitalRead(door_button) == HIGH) {
       //add beep 2x
-      stop_imm = false;
+      //stop_imm = false;
+      if (value == false)
+      {
+        if (q_timer_pause == true)timer_set = (timer_uni - rtc.now().unixtime());
+        q_timer_pause = false;
+        if (q_timer_pause == false)timer_uni = (rtc.now().unixtime() + timer_set);
+        pause_time = false;
+        digitalWrite(relay_on_off, HIGH);
+        digitalWrite(relay_power, HIGH);
+      }
+      if (value == true)
+      {
+        pause_time = true;
+      }
+
+    }
+    if (digitalRead(door_button) == LOW) {
+      q_timer_pause = true;
+
     }
 
     if ( pause_time == true) {
@@ -550,15 +649,24 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
       digitalWrite(relay_power, HIGH);
     }
     if ( pause_time == false) {
-      digitalWrite(relay_on_off, LOW);
-      //power function:
-      power_timer(power_mode); //number of mode,time on , time off
+      if (q_timer_pause == true)
+      {
+        digitalWrite(relay_on_off, LOW);
+        //power function:
+        power_timer(power_mode); //number of mode,time on , time off
+      }
+
     }
 
 
   }
   digitalWrite(relay_on_off, HIGH);
   digitalWrite(relay_power, HIGH);
+
+  tone(buzzer, 3500, 500);
+  delay (500);
+  noTone(buzzer);
+  delay (500);
   if (stop_imm == true)
   {
     end_program();
@@ -571,15 +679,23 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
 
 void timer_mode () {
   DateTime now = rtc.now();
-  digitalWrite(BC_display, HIGH);
+  BC_light(true, true);
   boolean in_timer_mode = true;
   timer_set = 10;
   while (in_timer_mode == true) {
     u8g.firstPage();
     do {
-      u8g.drawStr( 0, 8, "SetTimer");
-      u8g.setPrintPos(0, 16);
+      u8g.setFont(u8g_font_8x13Br);
+      u8g.drawStr( 10, 14, "SetTimer");
+      u8g.setPrintPos(20, 28);
       print2minute(timer_set);
+      u8g.setFont(u8g_font_5x7r);
+      u8g.drawFrame(0, 30, 26, 18);
+      u8g.drawStr( 4, 41, "DOWN");
+      u8g.drawFrame(28, 30, 26, 18);
+      u8g.drawStr( 29, 41, "START");
+      u8g.drawFrame(57, 30, 26, 18);
+      u8g.drawStr( 65, 41, "UP");
     }
     while ( u8g.nextPage() );
 
@@ -615,10 +731,10 @@ void timer_mode () {
           //add beep 2x
           u8g.firstPage();
           do {
-            u8g.setPrintPos(0, 24);
-            u8g.print("DOOR");
-            u8g.setPrintPos(0, 32);
-            u8g.print("OPEN");
+            u8g.setFont(u8g_font_8x13Br);
+            u8g.drawStr( 15, 12, "DOOR");
+            u8g.drawStr( 15, 28, "OPEN");
+
           }
           while ( u8g.nextPage() );
           BC_light(true, true);
@@ -640,7 +756,7 @@ void timer_mode () {
     }
 
     //delay of timer_mode - set time
-    if (rtc.now().unixtime() - timer_BC_display > 20)
+    if (rtc.now().unixtime() - timer_BC_display > 5)
     {
       digitalWrite(BC_display, LOW);
       in_timer_mode = false;
@@ -659,59 +775,28 @@ void end_program() {  //buzzer dodelat
   delay(200);
   while ((digitalRead(start_stop_button) == HIGH && digitalRead(door_button) == LOW) && stop_imm == true) {
 
-    digitalWrite(BC_display, HIGH);
+    BC_light(true, true);
     u8g.firstPage();
     do {
-      if (blink_lcd < 500) {
-        u8g.setPrintPos(0, 24);
-        u8g.print("Done");
 
-      }
-      if (blink_lcd > 500 && blink_lcd < 1000 ) {
-        u8g.setPrintPos(0, 24);
-        u8g.print("END");
-      }
-      blink_lcd++;
-      if (blink_lcd > 1000) blink_lcd = 0;
+      u8g.setFont(u8g_font_8x13Br);
+      u8g.drawStr( 10, 28, "END");
     }
+
     while ( u8g.nextPage() );
 
     if (rtc.now().unixtime() - timer_uni > 20)//set warning time!
     {
       //here add buzzer function beep
       for (int x = 0; x < 10; x++) {
-        digitalWrite(BC_display, LOW);
-        u8g.firstPage();
-        do {
-          u8g.setPrintPos(0, 24);
-          u8g.print("Done");
-        }
-        while ( u8g.nextPage() );
-        if (digitalRead(start_stop_button) == LOW) {
-          //add beep 2x
-          stop_imm = false;
-        }
-        if (digitalRead(door_button) == HIGH) {
-          //add beep 2x
-          stop_imm = false;
-        }
-        delay(500);
-        if (digitalRead(start_stop_button) == LOW) {
-          //add beep 2x
-          stop_imm = false;
-        }
-        if (digitalRead(door_button) == HIGH) {
-          //add beep 2x
-          stop_imm = false;
-        }
-        digitalWrite(BC_display, HIGH);
-        u8g.firstPage();
-        do {
-          u8g.setPrintPos(0, 24);
-          u8g.print("END");
-        }
-        while ( u8g.nextPage() );
-        delay(500);
+        u8g.setFont(u8g_font_8x13Br);
+        u8g.setPrintPos(10, 28);
+        u8g.print("RING!");
+
+        tone(buzzer, 3500, 500);
+        delay (100);
+        noTone(buzzer);
+        delay (100);
       }
       timer_uni = rtc.now().unixtime();
     }
@@ -721,8 +806,8 @@ void end_program() {  //buzzer dodelat
   stop_imm = true;
   u8g.firstPage();
   do {
-    u8g.setPrintPos(0, 24);
-    u8g.print("END !!");
+    u8g.setFont(u8g_font_8x13Br);
+    u8g.drawStr( 10, 28, ">END<");
   }
   while ( u8g.nextPage() );
   delay(3000);
