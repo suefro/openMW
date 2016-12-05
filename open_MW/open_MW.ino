@@ -1,5 +1,5 @@
 /*
-  Digital timer for microwave ver 1.0
+  Digital timer for microwave ver 1.2
   not tested in real
 */
 //#include <Wire.h>
@@ -9,17 +9,17 @@
 #include "U8glib.h"
 #include "M2tk.h"
 #include "utility/m2ghu8g.h"
-U8GLIB_PCD8544 u8g(7, 6, 4, 5, 3);    // SPI Com: SCK = 13, MOSI = 11, CS = 10, A0 = 9, Reset = 8
+U8GLIB_PCD8544 u8g(7, 6, 4, 5, 3);    // CLK=8, DIN=4, CE=7, DC=5, RST=6
 
 RTC_DS1307 rtc;
 
 //gloabal variables: (beware on changes!!)
-uint8_t up_button = 12;
-uint8_t start_stop_button = 10;
-uint8_t down_button = 11;
+uint8_t up_button = 10;
+uint8_t start_stop_button = 11;
+uint8_t down_button = 12;
 uint8_t BC_display = 9;
-uint8_t relay_on_off = 13;
-uint8_t relay_power = 8;
+uint8_t relay_on_off = 8;
+uint8_t relay_power = 13;
 uint8_t door_button = 0;
 uint8_t buzzer = 1;
 
@@ -35,7 +35,7 @@ uint8_t power_mode = 0; //5 modes (keep warm, rozmaržení,350W,500W,750W) -afte
 boolean on_off_mode = true;
 boolean stop_imm = true;
 boolean menu_select = true;
-char WM_version[5] = "1.1";
+char WM_version[5] = "1.2";
 boolean q_timer_pause = true;
 //=================================================
 // Forward declaration of the toplevel element
@@ -115,7 +115,7 @@ M2_RADIO(el_power_radio3, "v2", &power_mode);
 M2_LABEL(el_power_label4, NULL, "500W");
 M2_RADIO(el_power_radio4, "v3", &power_mode);
 
-M2_LABEL(el_power_label5, NULL, "700W");
+M2_LABEL(el_power_label5, NULL, "800W");
 M2_RADIO(el_power_radio5, "v4", &power_mode);
 
 M2_BUTTON(el_power_save, "f4", " save ", save_value_power);
@@ -229,7 +229,7 @@ void draw(void) {
 }
 
 void setup()   {
-  Serial.begin(9600);
+  //Serial.begin(9600);
   //buttons:
   pinMode(up_button, INPUT_PULLUP);
   pinMode(start_stop_button, INPUT_PULLUP);
@@ -292,14 +292,15 @@ void setup()   {
   if (! rtc.isrunning()) {
     u8g.firstPage();
     do {
-
+      rtc.adjust(DateTime(2016, 12, 1, 12, 0, 0));
       u8g.drawStr( 0, 20, "Set Time!");
 
+    
     }
     while ( u8g.nextPage() );
     delay(10000);
     // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
     // This line sets the RTC with an explicit date & time, for example to set
     // January 21, 2014 at 3am you would call:
     // rtc.adjust(DateTime(2014, 1, 21, 3, 0, 0));
@@ -406,6 +407,9 @@ void loop() {
     if (digitalRead(door_button) == LOW) {
       delay(500);
       BC_light(true, true);
+      tone(buzzer, 5000, 600);
+      delay (500);
+      noTone(buzzer);
       heating_timer (false);
     }
     else
@@ -443,8 +447,9 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
   boolean pause_time = false;
   boolean pause_time_button = true;
   digitalWrite(relay_on_off, LOW);
-  digitalWrite(relay_power, LOW);
   delay(500);
+  digitalWrite(relay_power, LOW);
+  
   while (timer_uni - rtc.now().unixtime() > 0 && stop_imm == true) {
     u8g.firstPage();
     do {
@@ -461,7 +466,7 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
         if (value == true) u8g.drawStr( 31, 41, "STOP");
         if (value == false) u8g.drawStr( 35, 41, "UP");
       }
-      
+
       if (digitalRead(door_button) == LOW)
       {
         if (value == true)
@@ -493,6 +498,9 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
 
       if (digitalRead(start_stop_button) == LOW) {
         //add beep 1x
+        tone(buzzer, 5000, 600);
+      delay (500);
+      noTone(buzzer);
         delay(500);
 
         if (timer_uni - rtc.now().unixtime() <= 580) {
@@ -513,8 +521,8 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
       if (digitalRead(door_button) == HIGH)
       {
         if (digitalRead(start_stop_button) == LOW) {
-           stop_imm = false;
-           delay(1000);
+          stop_imm = false;
+          delay(1000);
         }
       }
       if (digitalRead(door_button) == LOW)
@@ -663,12 +671,16 @@ void heating_timer (boolean value) { //if true -- normal heating mode //if false
   digitalWrite(relay_on_off, HIGH);
   digitalWrite(relay_power, HIGH);
 
-  tone(buzzer, 3500, 500);
-  delay (500);
-  noTone(buzzer);
-  delay (500);
+  
   if (stop_imm == true)
   {
+    for (int x = 0; x < 5; x++) {
+
+    tone(buzzer, 5000, 600);
+    delay (1000);
+    noTone(buzzer);
+    delay (1000);
+  }
     end_program();
   }
   timer_set = 0;
@@ -718,6 +730,9 @@ void timer_mode () {
     }
     if (digitalRead(start_stop_button) == LOW) {
       //add beep 1x
+      tone(buzzer, 5000, 600);
+      delay (500);
+      noTone(buzzer);
       delay(1000);
       if (digitalRead(start_stop_button) == HIGH) {
         if (digitalRead(door_button) == LOW) {
@@ -789,14 +804,11 @@ void end_program() {  //buzzer dodelat
     {
       //here add buzzer function beep
       for (int x = 0; x < 10; x++) {
-        u8g.setFont(u8g_font_8x13Br);
-        u8g.setPrintPos(10, 28);
-        u8g.print("RING!");
 
-        tone(buzzer, 3500, 500);
-        delay (100);
+        tone(buzzer, 5000, 900);
+        delay (1500);
         noTone(buzzer);
-        delay (100);
+        delay (1000);
       }
       timer_uni = rtc.now().unixtime();
     }
